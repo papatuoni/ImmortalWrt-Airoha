@@ -80,6 +80,10 @@ env:
   CACHE_TOOLCHAIN: true
   UPLOAD_BIN_DIR: false
   FIRMWARE_RELEASE: true
+  FEEDS_CONF: feeds.conf.default
+  DIY_P4_SH: diy-part.sh
+  UPLOAD_FIRMWARE: true
+  UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
 
 jobs:
@@ -291,7 +295,14 @@ jobs:
         ccache: false
         mixkey: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
         prefix: ${{ env.OPENWRT_PATH }}
-    
+
+    - name: DIY_P4
+      run: |
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        chmod +x $DIY_P4_SH
+        cd $OPENWRT_PATH
+        $GITHUB_WORKSPACE/$DIY_P4_SH
+        
     - name: Install Feeds(安装feeds)
       run: |
         # luci.mk 装 root/ 用的是 `cp -pR`（include/luci.mk），-p 保留权限 ——
