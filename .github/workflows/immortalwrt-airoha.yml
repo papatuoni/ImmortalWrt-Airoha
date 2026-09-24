@@ -69,7 +69,8 @@ env:
   DEVICE_VARIANT: ${{ github.event.inputs.device_variant }}
   EXTRA_PACKAGES: ${{ github.event.inputs.extra_packages }}
   PKG_VERSIONS: ${{ github.event.inputs.pkg_versions }}
-  REPO_URL: https://github.com/Loong1996/immortalwrt.git
+  REPO_URL: https://github.com/pbs05/ponwrt.git
+  #https://github.com/Loong1996/immortalwrt.git
   # 只维护 master-airoha 这一条线；输入留空时用它，填别的分支只作测试
   REPO_BRANCH: ${{ github.event.inputs.repo_branch || 'master-airoha' }}
   DEVICE: ${{ github.event.inputs.device }}
