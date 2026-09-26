@@ -334,6 +334,18 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
+    - name: 用我的 smartdns fork
+      run: |
+        cd $OPENWRT_PATH
+        MK=feeds/packages/net/smartdns/Makefile
+        test -f "$MK" || { echo "::error::找不到 $MK（feeds 结构变了？）"; exit 1; }
+        sed -i 's|^PKG_SOURCE:=.*|PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-custom.tar.gz|' "$MK"
+        sed -i 's|^PKG_SOURCE_URL:=.*|PKG_SOURCE_URL:=https://codeload.github.com/papatuoni/smartdns/tar.gz/custom-48-4?|' "$MK"
+        sed -i 's|^PKG_BUILD_DIR:=.*|PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-custom-48-4|' "$MK"
+        sed -i 's|^PKG_HASH:=.*|PKG_HASH:=skip|' "$MK"
+        echo "--- 改后确认 ---"
+        grep -E '^PKG_SOURCE|^PKG_BUILD_DIR|^PKG_HASH' "$MK"
+        
     - name: Inject Author Info(写入作者信息)
       run: |
         # 在默认 SSH banner 和 /usr/lib/os-release（procd 把 OPENWRT_RELEASE 报成
