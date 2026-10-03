@@ -345,6 +345,75 @@ jobs:
         sed -i 's|^PKG_HASH:=.*|PKG_HASH:=skip|' "$MK"
         echo "--- 改后确认 ---"
         grep -E '^PKG_SOURCE|^PKG_BUILD_DIR|^PKG_HASH' "$MK"
+
+    - name: 双 WAN 网口布局（lan3 移动 / lan2 电信 / lan4 局域网）
+      run: |
+        cd $OPENWRT_PATH
+        echo "===== [dualwan] 网口布局改写 ====="
+
+        NETF=$(find target/linux/airoha -path '*base-files/etc/board.d/02_network' 2>/dev/null | head -1)
+        if [ -n "$NETF" ]; then
+          echo "--- 上游 $NETF 原文（供核对）---"
+          head -n 60 "$NETF"
+          echo "------------------"
+        else
+          echo "::warning::[dualwan] 未找到 02_network，仅依赖 files/ 注入"
+        fi
+
+        mkdir -p files/etc/config files/etc/uci-defaults
+
+        cat > files/etc/config/network <<'NETEOF'
+        config device
+            option name 'br-lan'
+            option type 'bridge'
+            list ports 'lan4'
+
+        config interface 'lan'
+            option device 'br-lan'
+            option proto 'static'
+            option ipaddr '192.168.2.1'
+            option netmask '255.255.255.0'
+            option ip6assign '60'
+
+        config interface 'wan'
+            option device 'lan3'
+            option proto 'dhcp'
+            option peerdns '0'
+            option metric '10'
+
+        config interface 'wanb'
+            option device 'lan2'
+            option proto 'dhcp'
+            option peerdns '0'
+            option metric '20'
+            option defaultroute '0'
+        NETEOF
+
+        cat > files/etc/uci-defaults/99-dualwan-net <<'UCEOF'
+        #!/bin/sh
+        i=0
+        found=0
+        while uci -q get "firewall.@zone[$i].name" >/dev/null 2>&1; do
+            if [ "$(uci -q get "firewall.@zone[$i].name")" = "wan" ]; then
+                uci -q set firewall.@zone[$i].network="wan wanb"
+                found=1
+                break
+            fi
+            i=$((i+1))
+        done
+        [ "$found" = "1" ] || echo "dualwan: 未找到 wan 区" >&2
+        uci commit firewall
+        exit 0
+        UCEOF
+        chmod +x files/etc/uci-defaults/99-dualwan-net
+
+        echo "----- 最终 network -----"
+        cat files/etc/config/network
+        echo "------------------------"
+
+        [ -s files/etc/config/network ] || { echo "::error::network 写入失败"; exit 1; }
+        [ -s files/etc/uci-defaults/99-dualwan-net ] || { echo "::error::uci-defaults 写入失败"; exit 1; }
+        echo "===== [dualwan] 完成 ====="
         
     - name: Inject Author Info(写入作者信息)
       run: |
