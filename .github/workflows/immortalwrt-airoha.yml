@@ -308,7 +308,12 @@ jobs:
         prefix: ${{ env.OPENWRT_PATH }}
 
     - name: DIY_P4
+      env:
+        # PPPoE 账号密码从仓库 Secrets 读；没配就写占位符，刷机后在 LuCI 里填
+        PPPOE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
+        PPPOE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
       run: |
+        if [ -n "$PPPOE_PASSWORD" ]; then echo "::add-mask::$PPPOE_PASSWORD"; fi
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P4_SH
         cd $OPENWRT_PATH
@@ -340,6 +345,7 @@ jobs:
         # 不进源码仓库。feeds.conf 优先于 feeds.conf.default。
         [ -f feeds.conf ] || cp feeds.conf.default feeds.conf
         grep -q "^src-link loong " feeds.conf || \
+        
           echo "src-link loong $GITHUB_WORKSPACE/packages" >> feeds.conf
         ./scripts/feeds update -a
         ./scripts/feeds install -a
