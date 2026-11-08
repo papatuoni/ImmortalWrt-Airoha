@@ -38,16 +38,6 @@ on:
           - 512M
           - 1G
           - 2G
-      pppoe_username:
-        description: 'lan1 PPPoE 账号（留空写占位符，刷机后在 LuCI 里填；也可用 Secrets: PPPOE_USERNAME）'
-        required: false
-        default: ''
-        type: string
-      pppoe_password:
-        description: 'lan1 PPPoE 密码（日志会打码；建议用 Secrets: PPPOE_PASSWORD）'
-        required: false
-        default: ''
-        type: string
       extra_packages:
         description: '附加软件包（空格分隔；包名前加 - 表示移除。可用选包页生成）'
         required: false
@@ -308,12 +298,7 @@ jobs:
         prefix: ${{ env.OPENWRT_PATH }}
 
     - name: DIY_P4
-      env:
-        # PPPoE 账号密码从仓库 Secrets 读；没配就写占位符，刷机后在 LuCI 里填
-        PPPOE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
-        PPPOE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
       run: |
-        if [ -n "$PPPOE_PASSWORD" ]; then echo "::add-mask::$PPPOE_PASSWORD"; fi
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P4_SH
         cd $OPENWRT_PATH
@@ -345,24 +330,27 @@ jobs:
         # 不进源码仓库。feeds.conf 优先于 feeds.conf.default。
         [ -f feeds.conf ] || cp feeds.conf.default feeds.conf
         grep -q "^src-link loong " feeds.conf || \
-        
           echo "src-link loong $GITHUB_WORKSPACE/packages" >> feeds.conf
         ./scripts/feeds update -a
         ./scripts/feeds install -a
   
     - name: SmartDNS 改用 custom-48.4-dulwandiy 分支
       run: |
-        bash "$GITHUB_WORKSPACE/scripts/apply-custom.sh" smartdns "$OPENWRT_PATH"
+        cd $OPENWRT_PATH
+        MK=feeds/packages/net/smartdns/Makefile
+        test -f "$MK" || { echo "::error::找不到 $MK（feeds 结构变了？）"; exit 1; }
+        # 必须留在 Install Feeds 之后：这个 Makefile 是 feeds 装进来的，
+        # DIY_P4（diy-part.sh）执行时它还不存在。
+        # 指定软件包的「版本」走 pkg-versions.txt / Override Package Versions，
+        # 那个机制只改 PKG_VERSION 且要求上游 tag，吃不了分支名；
+        # 换源码分支只能改 PKG_SOURCE_URL / PKG_BUILD_DIR。
+        sed -i 's|^PKG_SOURCE:=.*|PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-custom.tar.gz|' "$MK"
+        sed -i 's|^PKG_SOURCE_URL:=.*|PKG_SOURCE_URL:=https://codeload.github.com/papatuoni/smartdns/tar.gz/custom-48.4-dulwandiy?|' "$MK"
+        sed -i 's|^PKG_BUILD_DIR:=.*|PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-custom-48.4-dulwandiy|' "$MK"
+        sed -i 's|^PKG_HASH:=.*|PKG_HASH:=skip|' "$MK"
+        echo "--- 改后确认 ---"
+        grep -E '^PKG_SOURCE|^PKG_SOURCE_URL|^PKG_BUILD_DIR|^PKG_HASH' "$MK"
 
-    - name: 双 WAN 网口布局（lan1 PPPoE / lan2 电信 DHCP 出口 / lan3+lan4 局域网）
-      env:
-        # 输入框留空时回落到仓库 Secrets；都不给就写占位符
-        PPPOE_USERNAME: ${{ github.event.inputs.pppoe_username || secrets.PPPOE_USERNAME }}
-        PPPOE_PASSWORD: ${{ github.event.inputs.pppoe_password || secrets.PPPOE_PASSWORD }}
-      run: |
-        if [ -n "$PPPOE_PASSWORD" ]; then echo "::add-mask::$PPPOE_PASSWORD"; fi
-        bash "$GITHUB_WORKSPACE/scripts/apply-custom.sh" network "$OPENWRT_PATH"
-        
     - name: Inject Author Info(写入作者信息)
       run: |
         # 在默认 SSH banner 和 /usr/lib/os-release（procd 把 OPENWRT_RELEASE 报成
@@ -747,7 +735,9 @@ jobs:
           echo
           echo "使用注意"
           echo "--------"
-          echo "* Passwall 与 OpenClash 不要同时启用，两者都会接管 nftables 规则链与 dnsmasq 配置。"
+          echo "* 本固件不含 mwan3 / UPnP / SQM / Passwall，双 WAN 不做负载均衡：默认出口是 lan2（电信 DHCP），lan1 为 PPPoE。"
+          echo "* 网口布局由 diy-part.sh 注入；lan1 的 PPPoE 账号密码默认空白，刷机后在 LuCI 里填。"
+          echo "* SmartDNS 源码指定为 papatuoni/smartdns 的 custom-48.4-dulwandiy 分支。"
           echo "* dnsmasq / SmartDNS / AdGuardHome 默认均监听 53 端口，刷机后需手动规划端口分配。"
           if [ "$DRAM_SIZE" = "auto" ]; then
             echo "* 本固件内存容量自适应，由引导程序探测上报；除 stock 外的变体可通刷 512M / 1G / 2G 机器。"
@@ -802,11 +792,11 @@ jobs:
           ### 🔖 软件包版本覆盖
           ${{ env.PKG_VER_NOTE }}
           - 由仓库里的 `config/pkg-versions.txt` 控制，编译前改写 feed 的 `PKG_VERSION` 并自动重算 `PKG_HASH`
-          ### ✂️ 默认不带代理与去广告
-          - Passwall / OpenClash / AdGuardHome / SmartDNS 都不在默认固件里 —— 它们很个人化，且占了原固件八成体积
-          - 需要就去选包页勾，重编一次即可。要搜：`luci-app-passwall` `xray-core` `sing-box` `geoview` / `luci-app-openclash` `ruby` `ruby-yaml` / `luci-app-adguardhome` `adguardhome` / `smartdns` `luci-app-smartdns`
-          - 引擎得单独勾：passwall 的引擎靠它自己的 `INCLUDE_*` 子选项带，那不是包名，选包页列不出来
-          - `kmod-nft-tproxy` 与 `kmod-tun` 已保留，所以加回代理时不必为内核模块重来一次
+          ### ✂️ 本次裁剪与定制
+          - 已移除 mwan3 / UPnP / SQM / Passwall（含 xray-core、sing-box、geoview 与 i18n、INCLUDE_* 子选项）
+          - SmartDNS 内置，源码指定 `papatuoni/smartdns` 的 `custom-48.4-dulwandiy` 分支
+          - 网口由 `diy-part.sh` 注入：lan1 = PPPoE（账号密码默认空白）、lan2 = DHCP 电信出口（默认路由）、lan3 + lan4 = LAN
+          - `kmod-nft-tproxy` 与 `kmod-tun` 仍保留，需要时可在选包页加回代理类软件包
 
     - name: Publish Pages Site(发布门户与选包页)
       if: steps.compile.outputs.status == 'success'
