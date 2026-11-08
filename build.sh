@@ -28,6 +28,8 @@ VARIANT="ubi"
 DEVICE="xg-040g-md"
 DRAM_SIZE="auto"
 EXTRA_PACKAGES=""
+PPPOE_USERNAME=""
+PPPOE_PASSWORD=""
 SRC_DIR=""
 JOBS=""
 DO_UPDATE=1        # 默认每次都拉最新源码；--no-update 可跳过
@@ -73,6 +75,8 @@ usage() {
   -D, --device <机型>     xg-040g-md|xg-040g-mf，默认 xg-040g-md
   -d, --dram <容量>       内存容量 auto|512M|1G|2G，默认 auto（自适应）
   -p, --packages <串>     附加软件包，格式同选包页：空格分隔，前缀 - 表示移除
+      --pppoe-user <账号> lan1 PPPoE 账号（不填写占位符，刷机后在 LuCI 里填）
+      --pppoe-pass <密码> lan1 PPPoE 密码
   -j, --jobs <n>          并行度，默认按 CPU 与内存自动取较小值
   -o, --src-dir <路径>    源码树位置，默认 <本仓库同级>/openwrt-<分支>
       --no-update         跳过源码与 feeds 更新，编当前这份代码
@@ -97,6 +101,8 @@ while [ $# -gt 0 ]; do
         -D|--device)    DEVICE="${2:?缺少机型}"; shift 2 ;;
         -d|--dram)      DRAM_SIZE="${2:?缺少容量}"; shift 2 ;;
         -p|--packages)  EXTRA_PACKAGES="${2:-}"; shift 2 ;;
+        --pppoe-user)   PPPOE_USERNAME="${2:?缺少 PPPoE 账号}"; shift 2 ;;
+        --pppoe-pass)   PPPOE_PASSWORD="${2:?缺少 PPPoE 密码}"; shift 2 ;;
         -j|--jobs)      JOBS="${2:?缺少并行度}"; shift 2 ;;
         -o|--src-dir)   SRC_DIR="${2:?缺少路径}"; shift 2 ;;
         --update)       DO_UPDATE=1; shift ;;
@@ -327,6 +333,11 @@ fi
 # ImageBuilder 的接口，写成命令行变量还会盖掉 kmod 打包用的同名变量。
 # 顺带撤销 2026-08-31 之前留在 feeds 里的 10_system.js 改动，否则作者信息
 # 会在管理页上出现两次。
+# SmartDNS fork 分支与双 WAN 网口布局：CI 与本地共用同一份脚本
+info "应用定制（SmartDNS 分支 / 双 WAN 网口布局）"
+PPPOE_USERNAME="$PPPOE_USERNAME" PPPOE_PASSWORD="$PPPOE_PASSWORD" \
+    bash "$REPO_ROOT/scripts/apply-custom.sh" all "$SRC_DIR"
+
 info "写入作者信息"
 python3 "$REPO_ROOT/scripts/inject-author-info.py" "$SRC_DIR"
 stage_done "准备"
