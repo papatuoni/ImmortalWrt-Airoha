@@ -5,6 +5,13 @@ sed -i 's/192.168.1.1/192.168.2.1/g' package/base-files/files/bin/config_generat
 # turboacc
 curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
 
+# Carbon 主题
+D="$GITHUB_WORKSPACE/packages/luci-theme-carbon"
+rm -rf "$D"
+git clone -b diy --depth 1 \
+  https://github.com/papatuoni/luci-theme-carbon.git "$D"
+rm -rf "$D/.git"
+
 # 双 WAN 网口布局 —— 仓库的 DIY 注入本来就由本脚本承担，不另建脚本。
 #   lan1 = pppoe-wan：PPPoE 拨号，账号密码默认空白（不预填、不需要输入），
 #                      刷机后在 LuCI「网络 → 接口 → WAN」自己填
