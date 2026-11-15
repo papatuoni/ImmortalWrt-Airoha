@@ -89,7 +89,7 @@ env:
 
 jobs:
   Build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # 发布 Release 需要写权限；仅授予 contents，其余 scope 自动为 none
     # 需配合仓库设置 Settings → Actions → General → Workflow permissions
     # 选择 "Read and write permissions"，否则此声明会被仓库级只读设置压制
