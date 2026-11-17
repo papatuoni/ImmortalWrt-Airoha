@@ -2,8 +2,11 @@
 # Modify default IP
 sed -i 's/192.168.1.1/192.168.2.1/g' package/base-files/files/bin/config_generate
 
-# turboacc
-curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
+# turboacc —— 6.18.60 首版禁用：
+#   原版 add_turboacc.sh 在 .60 上 953 的 skbuff.h hunk 必 FAILED，
+#   且会与 B 自带 952 撞车、把 firewall4/nftables/libnftnl 降级。
+#   第二阶段启用见 release-kit/stage4-turboacc/README.md
+# curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
 
 # Carbon 主题
 D="$GITHUB_WORKSPACE/packages/luci-theme-carbon"

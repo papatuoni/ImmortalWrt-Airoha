@@ -31,6 +31,309 @@ var themeCSS = '\
 .soc-cdm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px}\
 ';
 
+/* ==================================================================== *
+ * B 仓 1.0.1 视图层：卡片式 Frame Engine 面板（主题变量自适应）
+ * 与 A 的 .soc-* 样式零冲突，全部符号加 card 前缀，rpcd 完全复用 A 版
+ * ==================================================================== */
+/* ---- B view layer: cardViewCSS ---- */
+var cardViewCSS = '\
+.airoha-npu-card{background:var(--background-color-high,#fff);border:1px solid var(--border-color-medium,#d0d0d0);border-radius:8px;padding:14px;transition:border-color .3s}\
+.airoha-npu-card-active{border-color:var(--primary-color-medium,#2196f3)}\
+.airoha-npu-title{font-weight:bold;font-size:14px;color:var(--text-color-highest,#111)}\
+.airoha-npu-muted{color:var(--text-color-medium,#666)}\
+.airoha-npu-text{color:var(--text-color-high,#222)}\
+.airoha-npu-label{font-size:11px;color:var(--text-color-medium,#666)}\
+.airoha-npu-ok{color:var(--success-color-medium,#4caf50)}\
+.airoha-npu-warn{color:var(--warn-color-medium,#ff9800)}\
+.airoha-npu-error{color:var(--error-color-medium,#f44336)}\
+.airoha-npu-idle{color:var(--text-color-medium,#666)}\
+.airoha-npu-dot{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}\
+.airoha-npu-chip{padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600;text-transform:uppercase}\
+.airoha-npu-chip-on{background:var(--success-color-high,#2e7d32);color:var(--on-success-color,#fff)}\
+.airoha-npu-chip-npu{background:var(--primary-color-high,#1565c0);color:var(--on-primary-color,#fff)}\
+.airoha-npu-chip-off{background:none;border:1px solid var(--border-color-medium,#d0d7de);color:var(--text-color-medium,#666)}\
+.airoha-npu-bar-track{background:var(--border-color-medium,#d0d7de);border-radius:4px;overflow:hidden}\
+.airoha-npu-bar-fill{height:100%;border-radius:4px;transition:width .5s}\
+.airoha-npu-bar-ok{background:var(--success-color-high,#2e7d32)}\
+.airoha-npu-bar-warn{background:var(--warn-color-high,#e65100)}\
+.airoha-npu-bar-error{background:var(--error-color-high,#c62828)}\
+.airoha-npu-bar-idle{background:var(--border-color-high,#9aa4ad)}\
+.airoha-npu-freq-value{font-weight:bold;font-size:13px;color:var(--text-color-highest,#111);margin-bottom:4px}\
+.airoha-npu-freq-row{display:flex;align-items:center;gap:10px}\
+.airoha-npu-freq-track{flex:1;width:100%;max-width:350px;height:12px}\
+.airoha-npu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:10px;align-items:start}\
+.airoha-npu-band-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}\
+.airoha-npu-pse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}\
+.airoha-npu-pse-cell{background:var(--background-color-high,#fff);border:1px solid var(--border-color-medium,#d0d0d0);border-radius:5px;padding:6px 8px;font-size:12px}\
+.airoha-npu-pse-cell-drop{border-color:var(--error-color-medium,#f44336)}\
+';
+
+/* ---- B view layer: cardBandNames ---- */
+var cardBandNames = ['2.4 GHz', '5 GHz', '6 GHz'];
+
+/* ---- B view layer: cardPsePortMap ---- */
+var cardPsePortMap = [
+	'CDM1', 'GDM1', 'GDM2', 'GDM3', 'PPE1', 'CDM2', 'CDM3', 'CDM4', 'PPE2', 'GDM4'
+];
+
+/* ---- B view layer: cardFmtK ---- */
+function cardFmtK(n) {
+	if (!n || n === 0) return '0';
+	if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+	if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+	return n.toString();
+}
+
+/* ---- B view layer: cardLoadClass ---- */
+function cardLoadClass(pct) {
+	return pct > 80 ? 'error' : pct > 50 ? 'warn' : 'ok';
+}
+
+/* ---- B view layer: cardGetBandStats ---- */
+function cardGetBandStats(ti, b) {
+	var c = Array.isArray(ti.station_counts) ? ti.station_counts : [];
+	for (var i=0;i<c.length;i++) if (c[i].band===b) return c[i];
+	return { band:b, count:0, tx_packets:0, tx_retries:0 };
+}
+
+/* ---- B view layer: cardGetTxQueue ---- */
+function cardGetTxQueue(ti, b) {
+	var q = Array.isArray(ti.tx_queues) ? ti.tx_queues : [];
+	for (var i=0;i<q.length;i++) if (q[i].band===b) return q[i];
+	return null;
+}
+
+/* ---- B view layer: cardBandHealth ---- */
+function cardBandHealth(s) {
+	if (!s || s.count===0) return { text:_('No clients'), cls:'idle' };
+	if (!s.tx_packets) return { text:_('Idle'), cls:'idle' };
+	var r = s.tx_retries/(s.tx_packets+s.tx_retries);
+	return r>0.5 ? {text:_('Poor'),cls:'error'} : r>0.2 ? {text:_('Fair'),cls:'warn'} : {text:_('Good'),cls:'ok'};
+}
+
+/* ---- B view layer: cardRetryPct ---- */
+function cardRetryPct(s) {
+	if (!s || !s.tx_packets) return '-';
+	return (s.tx_retries/(s.tx_packets+s.tx_retries)*100).toFixed(1)+'%';
+}
+
+/* ---- B view layer: cardRenderBandChip ---- */
+function cardRenderBandChip(band, txQ, stats) {
+	var name = cardBandNames[band] || _('Band %d').format(band);
+	var h = cardBandHealth(stats);
+	var type = txQ ? txQ.type : '?';
+
+	return E('div', { 'class': 'airoha-npu-pse-cell' }, [
+		E('div', { 'style': 'display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px' }, [
+			E('span', { 'class': 'airoha-npu-title', 'style': 'font-size:13px' }, name),
+			E('span', { 'class': 'airoha-npu-chip '+(type==='npu'?'airoha-npu-chip-npu':'airoha-npu-chip-off'), 'style': 'font-size:9px' }, type.toUpperCase())
+		]),
+		E('div', { 'style': 'display:flex;justify-content:space-between;align-items:center;gap:6px' }, [
+			E('span', { 'class': 'airoha-npu-'+h.cls, 'style': 'display:flex;align-items:center;gap:4px;font-weight:500' }, [
+				E('span', { 'class': 'airoha-npu-dot' }),
+				E('span', {}, h.text)
+			]),
+			E('span', { 'class': 'airoha-npu-muted' }, _('%d sta').format(stats.count)),
+			(stats.tx_packets > 0) ? E('span', { 'class': 'airoha-npu-muted' }, cardRetryPct(stats)) : E('span')
+		])
+	]);
+}
+
+/* ---- B view layer: cardRenderFeDiagram ---- */
+function cardRenderFeDiagram(fe, ti, st) {
+	if (!fe || fe.error) return E('div', { 'class': 'airoha-npu-muted' }, _('devmem is not available on this build'));
+	ti = ti || {}; st = st || {};
+
+	var ports = Array.isArray(fe.pse_ports) ? fe.pse_ports : [];
+
+	// Helper: GDM card
+	function gdmCard(key, name, label, pse) {
+		var d = fe[key] || {};
+		var active = d.tx > 0 || d.rx > 0;
+		return E('div', { 'class': 'airoha-npu-card' + (active ? ' airoha-npu-card-active' : '') }, [
+			E('div', { 'style': 'display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px' }, [
+				E('span', { 'class': 'airoha-npu-title' }, name),
+				E('span', { 'class': 'airoha-npu-label' }, pse)
+			]),
+			E('div', { 'class': 'airoha-npu-label', 'style': 'margin-bottom:6px' }, label),
+			E('div', { 'style': 'display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12px' }, [
+				E('span', { 'class': 'airoha-npu-muted' }, _('TX')), E('span', { 'class': 'airoha-npu-text', 'style': 'text-align:right' }, cardFmtK(d.tx)),
+				E('span', { 'class': 'airoha-npu-muted' }, _('RX')), E('span', { 'class': 'airoha-npu-text', 'style': 'text-align:right' }, cardFmtK(d.rx))
+			].concat(d.tx_drop > 0 ? [
+				E('span', { 'class': 'airoha-npu-error' }, _('TX Drop')), E('span', { 'class': 'airoha-npu-error', 'style': 'text-align:right' }, cardFmtK(d.tx_drop))
+			] : []).concat(d.rx_drop > 0 ? [
+				E('span', { 'class': 'airoha-npu-error' }, _('RX Drop')), E('span', { 'class': 'airoha-npu-error', 'style': 'text-align:right' }, cardFmtK(d.rx_drop))
+			] : []))
+		]);
+	}
+
+	// Helper: CDM offload bar
+	function cdmCard(key, name, label, pse) {
+		var d = fe[key] || {};
+		var total = (d.rx_cpu||0) + (d.rx_hwf||0);
+		var pct = total > 0 ? ((d.rx_hwf/total)*100).toFixed(1) : '0.0';
+		// Here a high share is the good case: it is traffic the CPU never saw.
+		var barCls = total === 0 ? 'idle' : parseFloat(pct) > 80 ? 'ok' : parseFloat(pct) > 50 ? 'warn' : 'error';
+		return E('div', { 'class': 'airoha-npu-card' }, [
+			E('div', { 'style': 'display:flex;justify-content:space-between;gap:8px;margin-bottom:4px' }, [
+				E('span', { 'class': 'airoha-npu-title', 'style': 'font-size:13px' }, name+' '+pse),
+				E('span', { 'class': 'airoha-npu-label' }, label)
+			]),
+			E('div', { 'class': 'airoha-npu-text', 'style': 'font-size:12px;margin-bottom:4px' }, _('HW Offload: %s%%').format(pct)),
+			E('div', { 'class': 'airoha-npu-bar-track', 'style': 'height:6px' }, [
+				E('div', { 'class': 'airoha-npu-bar-fill airoha-npu-bar-'+barCls, 'style': 'width:'+pct+'%' })
+			]),
+			E('div', { 'style': 'display:flex;justify-content:space-between;gap:6px;font-size:11px;margin-top:4px' }, [
+				E('span', { 'class': 'airoha-npu-muted' }, _('CPU: %s').format(cardFmtK(d.rx_cpu||0))),
+				E('span', { 'class': 'airoha-npu-muted' }, _('HWF: %s').format(cardFmtK(d.rx_hwf||0))),
+				E('span', { 'class': 'airoha-npu-muted' }, _('TX: %s').format(cardFmtK(d.tx||0)))
+			])
+		]);
+	}
+
+	// WiFi band chips for CDM4
+	var bandChips = [];
+	for (var b = 0; b < 3; b++) bandChips.push(cardRenderBandChip(b, cardGetTxQueue(ti, b), cardGetBandStats(ti, b)));
+
+	// CDM4/WDMA + WiFi bands grouped
+	var p7 = ports[7] || { iq: 0, oq: 0, drops: 0 };
+	var cdm4WiFi = E('div', { 'class': 'airoha-npu-card' }, [
+		E('div', { 'style': 'display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px' }, [
+			E('span', { 'class': 'airoha-npu-title' }, 'CDM4 / WDMA'),
+			E('span', { 'class': 'airoha-npu-label' }, _('P7 WiFi DMA'))
+		]),
+		E('div', { 'style': 'display:flex;gap:12px;font-size:11px;margin-bottom:8px' }, [
+			E('span', { 'class': 'airoha-npu-muted' }, 'IQ '+p7.iq),
+			E('span', { 'class': 'airoha-npu-muted' }, 'OQ '+p7.oq),
+			p7.drops > 0 ? E('span', { 'class': 'airoha-npu-error' }, _('Drop %s').format(cardFmtK(p7.drops))) : null
+		].filter(Boolean)),
+		// WiFi bands inside
+		E('div', { 'class': 'airoha-npu-band-grid' }, bandChips)
+	]);
+
+	// NPU indicator
+	var npuActive = st.npu_loaded;
+	var npuCard = E('div', { 'class': 'airoha-npu-card' + (npuActive ? ' airoha-npu-card-active' : '') }, [
+		E('div', { 'style': 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px' }, [
+			E('span', { 'class': 'airoha-npu-title' }, 'NPU'),
+			E('span', { 'class': 'airoha-npu-chip '+(npuActive?'airoha-npu-chip-on':'airoha-npu-chip-off') }, npuActive ? _('Active') : _('Off'))
+		]),
+		E('div', { 'class': 'airoha-npu-label', 'style': 'margin-bottom:4px' }, _('8x RISC-V via PCIe RAM')),
+		E('div', { 'style': 'font-size:11px' }, [
+			E('span', { 'class': 'airoha-npu-muted' }, _('Manages: ')),
+			E('span', { 'class': 'airoha-npu-text' }, _('PPE init, WDMA rings, flow stats'))
+		])
+	]);
+
+	// PPE engines with flow count
+	var ppeCard = E('div', { 'class': 'airoha-npu-card airoha-npu-card-active' }, [
+		E('div', { 'style': 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px' }, [
+			E('span', { 'class': 'airoha-npu-title' }, _('PPE Engines')),
+			E('span', { 'class': 'airoha-npu-label' }, 'P4 + P8')
+		]),
+		E('div', { 'style': 'display:flex;gap:16px;font-size:12px' }, [
+			E('span', {}, [
+				E('span', { 'class': 'airoha-npu-muted' }, _('Bound ')),
+				E('span', { 'class': 'airoha-npu-text', 'style': 'font-weight:bold' }, (st.offload_bound||0).toString())
+			]),
+			E('span', {}, [
+				E('span', { 'class': 'airoha-npu-muted' }, _('Total ')),
+				E('span', { 'class': 'airoha-npu-text' }, (st.offload_total||0).toString())
+			])
+		])
+	]);
+
+	// PSE buffer
+	var pseT = (fe.pse_used||0)+(fe.pse_free||0);
+	var pseP = pseT>0 ? ((fe.pse_used/pseT)*100).toFixed(1) : '0';
+
+	// PSE port cells (skip P7 since it's shown in CDM4/WiFi section)
+	var baseline = {};
+	try { baseline = JSON.parse(localStorage.getItem('airoha_pse_drop_baseline') || '{}'); } catch(e) {}
+	var lastPseDrops = window._lastPseDrops || {};
+	window._lastPseDrops = lastPseDrops;
+
+	var portCells = ports.filter(function(p){ return p.port !== 7; }).map(function(p) {
+		var name = cardPsePortMap[p.port] || '';
+		var curDrops = p.drops || 0;
+		var baseVal = baseline[p.port] || 0;
+		if (curDrops < baseVal) {
+			baseVal = 0;
+			baseline[p.port] = 0;
+			try { localStorage.setItem('airoha_pse_drop_baseline', JSON.stringify(baseline)); } catch(e) {}
+		}
+		var effectiveDrops = Math.max(0, curDrops - baseVal);
+		var prev = lastPseDrops[p.port];
+		var isActivelyDropping = (prev !== undefined && curDrops > prev);
+		lastPseDrops[p.port] = curDrops;
+
+		var hasDrops = effectiveDrops > 0;
+		var cellCls = isActivelyDropping ? ' airoha-npu-pse-cell-drop' : '';
+		var dropBadge = null;
+		if (isActivelyDropping) {
+			dropBadge = E('span', { 'class': 'airoha-npu-error', 'title': _('Active packet drops detected') }, cardFmtK(effectiveDrops));
+		} else if (hasDrops) {
+			dropBadge = E('span', { 'class': 'airoha-npu-muted', 'title': _('Historical cumulative drops') }, cardFmtK(effectiveDrops));
+		}
+
+		return E('div', { 'class': 'airoha-npu-pse-cell' + cellCls }, [
+			E('div', { 'class': 'airoha-npu-text', 'style': 'font-weight:600;font-size:11px' }, ('P'+p.port+' '+name).trim()),
+			E('div', { 'style': 'display:flex;gap:8px;font-size:11px;margin-top:2px' }, [
+				E('span', { 'class': 'airoha-npu-muted' }, 'IQ '+p.iq),
+				E('span', { 'class': 'airoha-npu-muted' }, 'OQ '+p.oq),
+				dropBadge
+			].filter(Boolean))
+		]);
+	});
+
+	return E('div', {}, [
+		// PSE buffer bar
+		E('div', { 'class': 'airoha-npu-card', 'style': 'margin-bottom:10px' }, [
+			E('div', { 'style': 'display:flex;justify-content:space-between;gap:8px;margin-bottom:4px' }, [
+				E('span', { 'class': 'airoha-npu-title', 'style': 'font-size:13px' }, _('PSE Shared Buffer')),
+				E('span', { 'class': 'airoha-npu-muted', 'style': 'font-size:12px' }, _('%d used / %d free (%s%%)').format(fe.pse_used||0, fe.pse_free||0, pseP))
+			]),
+			E('div', { 'class': 'airoha-npu-bar-track', 'style': 'height:8px' }, [
+				E('div', { 'class': 'airoha-npu-bar-fill airoha-npu-bar-'+cardLoadClass(parseFloat(pseP)), 'style': 'width:'+pseP+'%' })
+			])
+		]),
+		// Row 1: GDM ports
+		E('div', { 'class': 'airoha-npu-grid' }, [
+			gdmCard('gdm1', 'GDM1', _('Internal Switch (1G LAN3/4)'), 'P1'),
+			gdmCard('gdm2', 'GDM2', _('WAN (USXGMII 10G)'), 'P2'),
+			gdmCard('gdm4', 'GDM4', _('LAN2 (USXGMII 10G)'), 'P9')
+		]),
+		// Row 2: CDM1/CDM2 (CPU) + CDM4/WiFi
+		E('div', { 'class': 'airoha-npu-grid' }, [
+			cdmCard('cdm1', 'CDM1', _('CPU DMA 1'), 'P0'),
+			cdmCard('cdm2', 'CDM2', _('CPU DMA 2'), 'P5'),
+			cdm4WiFi
+		]),
+		// Row 3: PPE + NPU
+		E('div', { 'class': 'airoha-npu-grid' }, [
+			ppeCard,
+			npuCard
+		]),
+		// PSE port grid
+		E('div', { 'style': 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px' }, [
+			E('span', { 'class': 'airoha-npu-text', 'style': 'font-size:12px;font-weight:600' }, _('PSE Port Queue Status')),
+			E('button', {
+				'class': 'cbi-button cbi-button-neutral',
+				'style': 'padding:1px 6px;font-size:11px;line-height:1.4',
+				'click': function(ev) {
+					ev.preventDefault();
+					var b = {};
+					ports.forEach(function(p){ b[p.port] = p.drops || 0; });
+					try { localStorage.setItem('airoha_pse_drop_baseline', JSON.stringify(b)); } catch(e) {}
+					var fc = document.getElementById('fe-container');
+					if (fc) { fc.innerHTML = ''; fc.appendChild(cardRenderFeDiagram(fe, ti, st)); }
+				}
+			}, _('Reset Drop Baseline'))
+		]),
+		E('div', { 'class': 'airoha-npu-pse-grid' }, portCells)
+	]);
+}
+
 function isDarkMode() {
 	// Sample multiple elements to get a reliable reading
 	var els = [document.body, document.querySelector('.main-content'), document.querySelector('#maincontent'), document.querySelector('.cbi-map')];
@@ -63,7 +366,7 @@ function injectCSS() {
 	var vars = dark
 		? ':root{--soc-card-bg:#1e1e1e;--soc-border:#333;--soc-muted:#999;--soc-text:#e0e0e0;--soc-bar-track:#333}'
 		: ':root{--soc-card-bg:#fff;--soc-border:#d0d0d0;--soc-muted:#666;--soc-text:#222;--soc-bar-track:#e0e0e0}';
-	el.textContent = themeCSS + vars;
+	el.textContent = themeCSS + cardViewCSS + vars;
 }
 
 /* ── Helpers ── */
@@ -479,7 +782,7 @@ return view.extend({
 
 				// Frame Engine diagram (includes WiFi bands, PPE flows, NPU indicator)
 				E('div',{'style':'margin-top:12px'},[ E('h4',{'class':'soc-text','style':'font-size:14px;margin-bottom:8px'},_('Frame Engine'))]),
-				E('div',{'id':'fe-container'}, renderFeDiagram(fe, ti, st))
+				E('div',{'id':'fe-container'}, cardRenderFeDiagram(fe, ti, st))
 			]),
 
 			// PPE Flow Table
@@ -509,7 +812,7 @@ return view.extend({
 				var se=document.getElementById('npu-status');
 				if(se){se.innerHTML='';var sp=document.createElement('span');sp.className=st.npu_loaded?'label-success':'label-danger';sp.textContent=st.npu_loaded?(_('Active')+(st.npu_device?' ('+st.npu_device+')':'')):_('Not Active');se.appendChild(sp);}
 
-				var fc=document.getElementById('fe-container'); if(fc){fc.innerHTML='';fc.appendChild(renderFeDiagram(fe, ti, st));}
+				var fc=document.getElementById('fe-container'); if(fc){fc.innerHTML='';fc.appendChild(cardRenderFeDiagram(fe, ti, st));}
 
 				var tb=document.getElementById('ppe-entries-table');
 				if(tb){while(tb.rows.length>1)tb.deleteRow(1);renderPpeRows(entries).forEach(function(r){tb.appendChild(r);});}

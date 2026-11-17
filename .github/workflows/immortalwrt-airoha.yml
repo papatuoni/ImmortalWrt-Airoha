@@ -331,6 +331,10 @@ jobs:
         [ -f feeds.conf ] || cp feeds.conf.default feeds.conf
         grep -q "^src-link loong " feeds.conf || \
           echo "src-link loong $GITHUB_WORKSPACE/packages" >> feeds.conf
+        grep -q "^src-git pon_drivers " feeds.conf || \
+          echo "src-git pon_drivers https://github.com/pbs05/openwrt-pon-drivers.git;main" >> feeds.conf
+        grep -q "^src-git pon_userspace " feeds.conf || \
+          echo "src-git pon_userspace https://github.com/pbs05/openwrt-pon-userspace.git;main" >> feeds.conf
         ./scripts/feeds update -a
         ./scripts/feeds install -a
   

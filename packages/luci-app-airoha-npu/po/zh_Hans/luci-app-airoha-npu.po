@@ -1,0 +1,160 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+
+msgid "%d sta"
+msgstr "%d 个客户端"
+
+msgid "8x RISC-V via PCIe RAM"
+msgstr "8 核 RISC-V（PCIe RAM）"
+
+msgid "Active"
+msgstr "运行中"
+
+msgid "Airoha SoC Status"
+msgstr "达发 SoC 与 NPU 状态"
+
+msgid "Apply"
+msgstr "应用设置"
+
+msgid "Applying..."
+msgstr "正在应用..."
+
+msgid "Band %d"
+msgstr "频段 %d"
+
+msgid "Bound"
+msgstr "已绑定"
+
+msgid "CPU Cores"
+msgstr "CPU 核心数"
+
+msgid "CPU Frequency"
+msgstr "CPU 工作频率"
+
+msgid "CPU: %s"
+msgstr "CPU: %s"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Confirm overclock"
+msgstr "确认超频"
+
+msgid "Continue"
+msgstr "继续"
+
+msgid "Current Frequency"
+msgstr "当前频率"
+
+msgid "Disabled"
+msgstr "禁用"
+
+msgid "Drop %s"
+msgstr "丢包 %s"
+
+msgid "Enabled"
+msgstr "启用"
+
+msgid "Ethernet"
+msgstr "以太网"
+
+msgid "Fair"
+msgstr "一般"
+
+msgid "Frame Engine"
+msgstr "帧引擎"
+
+msgid "Good"
+msgstr "良好"
+
+msgid "HW Offload: %s%%"
+msgstr "硬件卸载率: %s%%"
+
+msgid "HWF: %s"
+msgstr "硬件转发: %s"
+
+msgid "Idle"
+msgstr "空闲"
+
+msgid "N/A"
+msgstr "不可用"
+
+msgid "NPU & Offload Engine"
+msgstr "NPU 协处理器与硬件卸载引擎"
+
+msgid "NPU Status"
+msgstr "NPU 状态"
+
+msgid "New Flow"
+msgstr "卸载流向"
+
+msgid "No clients"
+msgstr "无客户端"
+
+msgid "Not Active"
+msgstr "未激活"
+
+msgid "Off"
+msgstr "未启用"
+
+msgid "Original Flow"
+msgstr "原始流向"
+
+msgid "Overclock"
+msgstr "超频控制"
+
+msgid "P7 WiFi DMA"
+msgstr "P7 WiFi DMA"
+
+msgid "PPE Engines"
+msgstr "PPE 包处理引擎"
+
+msgid "PPE Flow Offload Entries"
+msgstr "PPE 硬件流表条目 (Fastpath)"
+
+msgid "PPPoE Offload"
+msgstr "PPPoE 硬件卸载"
+
+msgid "PSE Port Queue Status"
+msgstr "PSE 端口队列状态"
+
+msgid "PSE Shared Buffer"
+msgstr "PSE 共享缓冲区"
+
+msgid "Poor"
+msgstr "差"
+
+msgid "RX"
+msgstr "接收"
+
+msgid "RX Drop"
+msgstr "接收丢包"
+
+msgid "Reserved Memory"
+msgstr "硬件预留内存"
+
+msgid "Reset Drop Baseline"
+msgstr "重置丢包基准"
+
+msgid "SoC Status"
+msgstr "SoC 与 NPU 状态"
+
+msgid "State"
+msgstr "状态"
+
+msgid "TX"
+msgstr "发送"
+
+msgid "TX Drop"
+msgstr "发送丢包"
+
+msgid "Type"
+msgstr "协议类型"
+
+msgid "VLAN Offload"
+msgstr "VLAN 硬件卸载"
+
+msgid "devmem is not available on this build"
+msgstr "本固件未启用 devmem"
