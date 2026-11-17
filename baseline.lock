@@ -1,0 +1,57 @@
+# XG-040G-MD 整合基线锁 · STEP 1
+# 生成时间: 2026-11-17 (Asia/Shanghai)
+# 用途: 记录「A 的黄金基线」精确来源。整合期间任何 B 的改动都以此文件为判定基准。
+# 注意: 这是记录锁；若要硬锁编译源码，见 操作手册『加固档』。
+
+## 仓库 commit (GitHub API 实时查询)
+A_REPO=papatuoni/ImmortalWrt-Airoha
+A_BRANCH=main
+A_COMMIT=dece7ed3f75963c546a0a21a724308a540008ea5
+
+B_REPO=wuziwei/ponwrt-ZN504-HG5585F
+B_BRANCH=master
+B_COMMIT=efa238714ebeb48a47439d3478cda42db6ef5666
+
+SOURCE_REPO=Loong1996/immortalwrt
+SOURCE_BRANCH=master-airoha
+SOURCE_COMMIT=41d7b64f938093072673163ecf63e62bc5faecb6
+SOURCE_COMMIT_DATE=2026-09-26T17:34:47Z
+SOURCE_TARBALL=codeload.github.com/Loong1996/immortalwrt/tar.gz/refs/heads/master-airoha
+
+# A 的 upstream.lock 锁的是另一个仓库，盯梢用，不参与实际编译基线
+UPSTREAM_PINNED_COMMIT=a6215104b8bbfe4bec634ee532cdcf8235380692
+UPSTREAM_PINNED_DATE=2026-09-04
+UPSTREAM_MASTER_TIP_20261117=2fe3065ade26bd1ef85539c9d1bd2272bdb0aa01
+
+KERNEL_VERSION=6.18
+UBOOT_AIROHA_VERSION=2026.07
+DEVICE_SYMBOL=nokia_xg-040g-md-ubi
+CONFIG_FILE=config/xg-040g-md-master.config
+
+## 关键文件 SHA-256 (来自本次全量归档逐文件读取)
+62e64111e2263341b2101febcb370937ff62c59df1f5d0f40f663200f46616b8  A:.github/workflows/immortalwrt-airoha.yml
+9ec0f1fdcf7ef2b9f981a6ef28e274645790984ba1433d2358856a5003688adf  A:config/pkg-versions.txt
+6683e21648f1033269eb131d591891759c489deea2bf4a6db555dacbb3d10ad8  A:config/xg-040g-md-master.config
+9bc21fa0ebff38ce458d9f850496aa94dec4ed780cae3b08f92b02c80d2eb7b1  A:config/xg-040g-mf-master.config
+fce0f676696a53714365445892c0b1ded22d9c43a6f907867849bc52a9c26f5e  A:golden/an7581-nokia-xg-040g-md.dts
+1e540f2e164395f51a295dad072e63bf3669912b1d305d4310ed4fd36c05e412  A:golden/an7583-nokia-xg-040g-mf.dts
+bcc36c058cccc0942481183cdc7d9563139604d50ec3f66d28d3c22b87818c93  A:golden/image-an7581-nokia_xg-040g-md-ubi.dts
+926fba0db6e0b0aabca3aa31e79e0fc17c7fdfccf28d2e237ef43e7abc21fed2  A:golden/image-an7581-nokia_xg-040g-md.dts
+eeebd36a6e9f326fc1d2c67db759b439183801f9127c8831a676dcc8233d966c  A:golden/image-an7583-nokia_xg-040g-mf-ubi.dts
+20409fb2dc0dc66c356f0b91ec7de24393e352446d1e8371f9a3c0bec46df5a1  A:golden/image-an7583-nokia_xg-040g-mf.dts
+e9795f40ceb92e9480c13eb4c92bff435e80462ca89dac993dfcdba7ed53498c  A:packages/luci-app-airoha-npu/Makefile
+582517da3e0e2d1d7bc472b018fdf22afe37ce0c3ef561f1454e322e08624544  A:scripts/check-drift.sh
+743b1a94c5d57ddfda6da185cf61a441e9b09af7c817e6c6f1a60de29e1340d4  A:upstream.lock
+6c380af012cc4c41d2ce1b3955a475fd69565b5a8716cb0fcb9159c3d9845a34  U:feeds.conf.default
+4ac79de214648606491bc981b45f632486670424c609f100a06c27b4764e408f  U:target/linux/airoha/Makefile
+284b3e05c8739bca4565fdd7f03f176416d5878127368092ed569fb1c00385ed  U:target/linux/airoha/an7581/config-6.18
+a46c45e4c76084941b0fe9e040b1f06f7c2b40457ade42bf1aa0136feb96374d  U:target/linux/airoha/dts/an758x-nokia_xg-040g-common.dtsi
+a22b0d347165cfff92d2ffc426c30408a481796082c571c02fb842f5bc42c334  U:target/linux/airoha/image/an7581.mk
+
+## 待第一次 CI 运行回填
+BUILD_RUN_ID=
+BUILD_DATE=
+BASELINE_MANIFEST_SHA256=
+BASELINE_CONFIG_SHA256=
+DTB_GOLDEN_STATUS=
+PATCH_REFRESH_STATUS=

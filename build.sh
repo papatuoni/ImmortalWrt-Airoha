@@ -34,6 +34,8 @@ DO_UPDATE=1        # 默认每次都拉最新源码；--no-update 可跳过
 DO_MENUCONFIG=0
 DO_CLEAN=0
 CONFIG_ONLY=0
+BASELINE_OUT=""            # STEP 1: 非空则编译成功后归档基线产物
+SOURCE_COMMIT_PIN=""      # STEP 1: 非空则把源码树钉死到该 commit（隐含 --no-update）
 
 die() { echo "错误: $*" >&2; exit 1; }
 info() { echo -e "\033[1;32m==>\033[0m $*"; }
@@ -81,6 +83,8 @@ usage() {
       --menuconfig        defconfig 之后进入 menuconfig 手动调整
       --clean             编译前 make clean（保留工具链）
       --config-only       只做到配置生成，不编译
+      --baseline-out <目录> 编译成功后归档基线（commit/.config/manifest/DTB），本地迭代用
+      --pin-source <sha>   把源码钉死到指定 commit，隐含 --no-update
   -h, --help              显示本帮助
 
 示例:
@@ -104,6 +108,8 @@ while [ $# -gt 0 ]; do
         --menuconfig)   DO_MENUCONFIG=1; shift ;;
         --clean)        DO_CLEAN=1; shift ;;
         --config-only)  CONFIG_ONLY=1; shift ;;
+        --baseline-out) BASELINE_OUT="${2:?缺少输出目录}"; shift 2 ;;
+        --pin-source)   SOURCE_COMMIT_PIN="${2:?缺少 commit}"; DO_UPDATE=0; shift 2 ;;
         -h|--help)      usage; exit 0 ;;
         *)              usage >&2; die "未知选项: $1" ;;
     esac
@@ -255,6 +261,23 @@ else
         info "源码树保持原样（--no-update）"
     fi
 fi
+
+# ------------------------------------------------------------ STEP 1 · 基线锁
+# 本地迭代必须钉死源码 commit：build.sh 默认 DO_UPDATE=1 会把树拉到分支最新，
+# 刚归档的 baseline.lock / golden / manifest 一跑就全部作废。
+# --pin-source 隐含 --no-update，避免「更新完又 checkout 回旧 commit」的 detached 混乱。
+if [ -n "$SOURCE_COMMIT_PIN" ]; then
+    info "钉死源码到 $SOURCE_COMMIT_PIN（--pin-source 已隐含 --no-update）"
+    DO_UPDATE=0   # 新 clone 的分支会把 DO_UPDATE 重设成 1，这里再压回去，连 feeds 一起冻结
+    git -C "$SRC_DIR" checkout -q "$SOURCE_COMMIT_PIN" \
+        || die "源码树里没有这个 commit：$SOURCE_COMMIT_PIN"
+    ACTUAL_COMMIT="$(git -C "$SRC_DIR" rev-parse HEAD)"
+    [ "$ACTUAL_COMMIT" = "$SOURCE_COMMIT_PIN" ] \
+        || die "钉死失败：期望 $SOURCE_COMMIT_PIN，实际 $ACTUAL_COMMIT"
+fi
+SOURCE_COMMIT="$(git -C "$SRC_DIR" rev-parse HEAD)"
+info "本次源码 commit: $SOURCE_COMMIT"
+export SOURCE_COMMIT
 
 cd "$SRC_DIR"
 git --no-pager log -1 --date=short --format="    当前 HEAD: %h %cd %s"
@@ -442,6 +465,18 @@ if ! make -j"$JOBS"; then
     make -j1 V=s
 fi
 stage_done "编译"
+
+# ------------------------------------------------------------ STEP 1 · 归档基线
+# 替代 .github/workflows/immortalwrt-airoha.yml 里的 Collect Baseline step：
+# 本地跑 build.sh 时 workflow 完全不会被读取，基线逻辑必须落在这里才生效。
+if [ -n "$BASELINE_OUT" ]; then
+    SRC_DIR_ABS="$(cd "$SRC_DIR" && pwd)"
+    info "归档基线产物到 $BASELINE_OUT"
+    bash "$REPO_ROOT/scripts/collect-baseline.sh" \
+        "$SRC_DIR_ABS" "$BASELINE_OUT" "$REPO_ROOT" "local" \
+        || die "基线归档失败（编译本身已成功，可单独重跑 collect-baseline.sh）"
+    info "基线已生成：$BASELINE_OUT/baseline.json（origin=local，工作基线）"
+fi
 
 # --------------------------------------------------------------- 产物
 
