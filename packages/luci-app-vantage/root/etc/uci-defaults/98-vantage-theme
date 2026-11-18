@@ -1,0 +1,16 @@
+#!/bin/sh
+# stage7: register the Vantage theme. Never hijack the active theme by default.
+# Set /etc/config/vantage -> option default_theme '1' and reboot (or re-run
+# this script) to make Vantage the LuCI default.
+[ -f /etc/config/vantage ] || exit 0
+
+uci -q batch <<'EOF'
+set luci.themes.Vantage='/luci-static/vantage'
+commit luci
+EOF
+
+if [ "$(uci -q get vantage.main.default_theme)" = "1" ]; then
+	uci -q set luci.main.mediaurlbase='/luci-static/vantage'
+	uci -q commit luci
+fi
+exit 0

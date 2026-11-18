@@ -1,0 +1,13 @@
+# Vantage dashboard settings (luci-app-vantage).
+#
+# Station names given in the dashboard's inspector are stored here, one
+# section per station (MAC in lower case, name at most 48 characters):
+#
+#   config client
+#   	option mac '00:00:5e:00:53:01'
+#   	option name 'Living room TV'
+#   	option icon 'tv'
+
+config vantage 'main'
+	# stage7: 1 = 首次开机把 LuCI 默认主题设为 Vantage（会覆盖 Carbon/argon）
+	option default_theme '0'
