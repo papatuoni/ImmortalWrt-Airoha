@@ -437,12 +437,83 @@ get_frame_engine() {
 	local cdm2_rxcpud=$(($(devmem 0x1fb515a0)))
 	local cdm2_rxhwfd=$(($(devmem 0x1fb515a4)))
 
+	# ---- AN7581_OFFLOAD_PATCH -------------------------------------------
+	# AN7581 exposes no usable NPU flow-stats counter. CDM RXHWF_OK reads 0
+	# because PPE-forwarded frames never traverse the CPU DMA queue, so the
+	# stock formula rx_hwf/(rx_cpu+rx_hwf) always renders 0.0%.
+	# Derive the hardware path from port-level GDM RX counters instead:
+	#   rx_total = gdm1.rx + gdm2.rx + gdm4.rx   (every ingress frame,
+	#              including PPE-offloaded ones)
+	#   rx_cpu   = cdm1.rx_cpu + cdm2.rx_cpu      (frames that hit CPU DMA)
+	#   rx_hw    = rx_total - rx_cpu              (hardware-forwarded, derived)
+	# Verified on XG-040G-MD with flow_offloading_hw toggled (931/932):
+	#   hw=0 -> dG == dC exactly; hw=1 -> dC is background only (~1.4k/4.5M).
+	#   That equality also proves GDM RX is not double-counting on this board.
+	# Expose window deltas (since previous ubus call) so the LuCI bar reflects
+	# current traffic, not a since-boot average diluted by broadcasts/ARP.
+	# Cumulative raw register values remain available as *_total / offload.*.
+	local snap=/tmp/.airoha_npu_fe.snap
+	local pg1=0 pg2=0 pg4=0 pc1=0 pc2=0 last_cpu=0 last_hw=0
+	local basis="cumulative"
+	if [ -f "$snap" ]; then
+		read -r pg1 pg2 pg4 pc1 pc2 last_cpu last_hw < "$snap" 2>/dev/null
+		[ -z "$pg1" ] && pg1=0; [ -z "$pg2" ] && pg2=0; [ -z "$pg4" ] && pg4=0
+		[ -z "$pc1" ] && pc1=0; [ -z "$pc2" ] && pc2=0
+		[ -z "$last_cpu" ] && last_cpu=0; [ -z "$last_hw" ] && last_hw=0
+	fi
+
+	# Per-register 32-bit wraparound, then sum (each counter tracked separately)
+	local d1=$(( gdm1_rx - pg1 ));    [ "$d1" -lt 0 ] && d1=$(( d1 + 4294967296 ))
+	local d2=$(( gdm2_rx - pg2 ));    [ "$d2" -lt 0 ] && d2=$(( d2 + 4294967296 ))
+	local d4=$(( gdm4_rx - pg4 ));    [ "$d4" -lt 0 ] && d4=$(( d4 + 4294967296 ))
+	local c1=$(( cdm1_rxcpu - pc1 )); [ "$c1" -lt 0 ] && c1=$(( c1 + 4294967296 ))
+	local c2=$(( cdm2_rxcpu - pc2 )); [ "$c2" -lt 0 ] && c2=$(( c2 + 4294967296 ))
+	local dg=$(( d1 + d2 + d4 ))
+	local dc=$(( c1 + c2 ))
+	local dh=$(( dg - dc )); [ "$dh" -lt 0 ] && dh=0
+
+	# Guard: a per-register delta above 2^31 is not a normal 32-bit wrap but
+	# a stale snapshot (counter reset, NPU re-probe, or rpcd just replaced).
+	# Fall back to cumulative for this call and re-arm the snapshot.
+	local stale=0 _d
+	for _d in "$d1" "$d2" "$d4" "$c1" "$c2"; do
+		[ "$_d" -gt 2147483648 ] && stale=1
+	done
+
+	local view_cpu=$dc view_hw=$dh
+	if [ -f "$snap" ] && [ "$stale" -eq 0 ]; then
+		if [ "$dg" -eq 0 ]; then
+			# Idle window: hold the last meaningful sample, avoid a 0.0% flicker
+			view_cpu=$last_cpu; view_hw=$last_hw; basis="held"
+		else
+			basis="window-delta"
+		fi
+	else
+		# First call: no previous sample, fall back to since-boot cumulative
+		local cg=$(( gdm1_rx + gdm2_rx + gdm4_rx ))
+		local cc=$(( cdm1_rxcpu + cdm2_rxcpu ))
+		view_cpu=$cc; view_hw=$(( cg - cc )); [ "$view_hw" -lt 0 ] && view_hw=0
+	fi
+	local ratio=0
+	local vsum=$(( view_cpu + view_hw ))
+	[ "$vsum" -gt 0 ] && ratio=$(( view_hw * 1000 / vsum ))
+
+	# Snapshot via temp + mv: readers always see a complete 7-field file
+	printf '%s %s %s %s %s %s %s\n' \
+		"$gdm1_rx" "$gdm2_rx" "$gdm4_rx" "$cdm1_rxcpu" "$cdm2_rxcpu" \
+		"$view_cpu" "$view_hw" > "$snap.tmp.$$" 2>/dev/null
+	[ -f "$snap.tmp.$$" ] && mv -f "$snap.tmp.$$" "$snap"
+
 	printf '{"pse_ports":[%s],"pse_used":%d,"pse_free":%d,' "$pse_ports" "$pse_used" "$pse_free"
 	printf '"gdm1":{"tx":%d,"tx_drop":%d,"rx":%d,"rx_drop":%d},' "$gdm1_tx" "$gdm1_txd" "$gdm1_rx" "$gdm1_rxd"
 	printf '"gdm2":{"tx":%d,"tx_drop":%d,"rx":%d,"rx_drop":%d},' "$gdm2_tx" "$gdm2_txd" "$gdm2_rx" "$gdm2_rxd"
 	printf '"gdm4":{"tx":%d,"tx_drop":%d,"rx":%d,"rx_drop":%d},' "$gdm4_tx" "$gdm4_txd" "$gdm4_rx" "$gdm4_rxd"
-	printf '"cdm1":{"tx":%d,"rx_cpu":%d,"rx_hwf":%d,"rx_cpu_drop":%d,"rx_hwf_drop":%d},' "$cdm1_tx" "$cdm1_rxcpu" "$cdm1_rxhwf" "$cdm1_rxcpud" "$cdm1_rxhwfd"
-	printf '"cdm2":{"tx":%d,"rx_cpu":%d,"rx_hwf":%d,"rx_cpu_drop":%d,"rx_hwf_drop":%d}}' "$cdm2_tx" "$cdm2_rxcpu" "$cdm2_rxhwf" "$cdm2_rxcpud" "$cdm2_rxhwfd"
+	printf '"cdm1":{"tx":%d,"rx_cpu":%d,"rx_hwf":%d,"rx_cpu_drop":%d,"rx_hwf_drop":%d,"rx_cpu_total":%d,"rx_hwf_total":%d},' \
+		"$cdm1_tx" "$view_cpu" "$view_hw" "$cdm1_rxcpud" "$cdm1_rxhwfd" "$cdm1_rxcpu" "$cdm1_rxhwf"
+	printf '"cdm2":{"tx":%d,"rx_cpu":%d,"rx_hwf":%d,"rx_cpu_drop":%d,"rx_hwf_drop":%d},' \
+		"$cdm2_tx" "$cdm2_rxcpu" "$cdm2_rxhwf" "$cdm2_rxcpud" "$cdm2_rxhwfd"
+	printf '"offload":{"rx_total":%d,"rx_cpu":%d,"rx_hw":%d,"ratio_permille":%d,"basis":"%s","derived":1,"note":"rx_hw derived from GDM RX minus CDM CPU; AN7581 has no NPU flow-stats counter"}}' \
+		"$vsum" "$view_cpu" "$view_hw" "$ratio" "$basis"
 }
 
 get_vlan_offload() {
