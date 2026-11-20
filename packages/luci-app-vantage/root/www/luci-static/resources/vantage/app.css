@@ -1393,3 +1393,73 @@ html[data-darkmode="true"] .vt-app {
 	.vt-app .vt-flow-3.vt-flow-on { stroke-width: 3; }
 	.vt-app .vt-flows { display: none; }
 }
+
+/* ===== stage8 Vantage dashboard cool layer / preset: neon [BEGIN] =====
+ * 整体追加到 resources/vantage/app.css 末尾，全部规则 scoped 到 .vt-app。
+ * 配色不硬编码：--v-* 由主题 tokens 派生，主题层改了这里自动跟随。
+ * 唯一需要覆盖的是 --v-accent-ink（原为白字，霓虹底上对比不足）。
+ */
+
+html[data-darkmode="true"] .vt-app {
+	--v-accent-ink: #04121a;
+	--v-accent-soft: rgba(34, 211, 238, .12);
+}
+
+/* --- 1. 仪表盘背景光晕（叠在主题 body 光晕之上，仍不吃事件） --- */
+html[data-darkmode="true"] .vt-app {
+	background-image:
+		radial-gradient(760px 420px at 84% -6%, rgba(167, 139, 250, .10), transparent 60%),
+		radial-gradient(620px 380px at 4% 104%, rgba(34, 211, 238, .055), transparent 60%);
+	background-repeat: no-repeat;
+}
+
+/* --- 2. 卡片玻璃感 + 霓虹描边（只在 hover 加，不覆盖原阴影） --- */
+html[data-darkmode="true"] .vt-app .vt-chip,
+html[data-darkmode="true"] .vt-app .vt-card,
+html[data-darkmode="true"] .vt-app .vt-cores-box,
+html[data-darkmode="true"] .vt-app .vt-chart {
+	-webkit-backdrop-filter: blur(10px) saturate(130%);
+	backdrop-filter: blur(10px) saturate(130%);
+}
+html[data-darkmode="true"] .vt-app .vt-chip:hover {
+	border-color: rgba(34, 211, 238, .42);
+	box-shadow: 0 0 0 1px rgba(34, 211, 238, .42), 0 0 22px rgba(34, 211, 238, .11);
+}
+
+/* --- 3. 关键数值渐变文本 --- */
+html[data-darkmode="true"] .vt-app .vt-big,
+html[data-darkmode="true"] .vt-app .vt-chip-value {
+	background: linear-gradient(96deg, #22d3ee, #a78bfa);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+/* --- 4. 进度条 / 核心占用条渐变 --- */
+html[data-darkmode="true"] .vt-app .vt-bar-fill,
+html[data-darkmode="true"] .vt-app .vt-core-fill,
+html[data-darkmode="true"] .vt-app .vt-chart .vt-k-up {
+	background-image: linear-gradient(90deg, #22d3ee, #a78bfa);
+}
+
+/* --- 5. 在线点呼吸 --- */
+@keyframes vt-stage8-av {
+	0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, .12); }
+	50%      { box-shadow: 0 0 0 5px transparent; }
+}
+html[data-darkmode="true"] .vt-app .vt-av:not(.vt-av-gone) .vt-ico {
+	animation: vt-stage8-av 2.6s ease-out infinite;
+}
+
+/* --- 6. 表头细线强调 --- */
+html[data-darkmode="true"] .vt-app .vt-ctable thead th {
+	border-bottom-color: rgba(34, 211, 238, .42);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html[data-darkmode="true"] .vt-app .vt-av:not(.vt-av-gone) .vt-ico {
+		animation: none !important;
+	}
+}
+
+/* ===== stage8 Vantage dashboard cool layer / preset: neon [END] ===== */

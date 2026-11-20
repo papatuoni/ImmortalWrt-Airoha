@@ -3455,3 +3455,106 @@ select[id^="widget.cbid.firewall."] > option { color: var(--text); font-weight: 
 	.vt-rail, .vt-flyout, .vt-topbar, .vt-tabs, .cbi-page-actions, .vt-foot, body.vt-auth .vt-shell::before { display: none !important; }
 	.vt-frame { margin: 0 !important; }
 }
+
+/* ===== stage8 Vantage cool layer / preset: neon [BEGIN] =====
+ * 由 apply-vantage-cool.py 生成，整体追加到 vantage.css 末尾。
+ * 本块只在本主题被加载时生效，不污染 Carbon / argon / bootstrap。
+ * --revert 可整块移除，上方原主题任何一行都不改动。
+ *
+ * 设计约束：只重铸「背景 + 强调色 + 装饰」，保留作者调好的
+ * --text / --line / --s1..s4 对比度，避免炫酷毁掉可读性。
+ */
+
+/* --- 1. 暗色：背景与霓虹强调色（--v-* 由这些 tokens 派生，仪表盘自动跟随） --- */
+html[data-darkmode="true"] {
+	--bg: #070b18;
+	--bg-rail: #0a1020;
+	--accent: #22d3ee;
+	--accent-hover: #67e8f9;
+	--accent-ink: #04121a;
+	--accent-text: #22d3ee;
+	--accent-soft: rgba(34, 211, 238, .12);
+	--accent-line: rgba(34, 211, 238, .42);
+	--focus: #22d3ee;
+	--ok: #34d399;
+	--shadow-pop: 0 12px 32px rgba(0, 0, 0, .52),
+	              0 0 0 1px rgba(34, 211, 238, .42),
+	              0 0 26px rgba(34, 211, 238, .11);
+}
+
+/* --- 2. 环境光：两层径向渐变挂在 body 背景上，不用伪元素、不吃事件 --- */
+html[data-darkmode="true"] body {
+	background-color: #070b18;
+	background-image:
+		radial-gradient(1000px 600px at 8% -12%, rgba(34, 211, 238, .11), transparent 62%),
+		radial-gradient(860px 540px at 98% 112%, rgba(167, 139, 250, .10), transparent 60%);
+	background-attachment: fixed;
+}
+
+/* 浅色模式只加一层极轻的光晕，不改任何 tokens */
+html[data-darkmode="false"] body {
+	background-image: radial-gradient(900px 520px at 8% -12%, rgba(34, 211, 238, .055), transparent 66%);
+	background-attachment: fixed;
+}
+
+/* --- 3. 玻璃拟态：顶栏与侧栏 --- */
+html[data-darkmode="true"] .vt-topbar,
+html[data-darkmode="true"] .vt-rail {
+	background: color-mix(in srgb, var(--bg-rail) 80%, transparent);
+	-webkit-backdrop-filter: blur(18px) saturate(150%);
+	backdrop-filter: blur(18px) saturate(150%);
+	border-color: rgba(34, 211, 238, .42);
+}
+html[data-darkmode="true"] .vt-rail-item:hover,
+html[data-darkmode="true"] .vt-rail-link:hover {
+	text-shadow: 0 0 14px rgba(34, 211, 238, .11);
+}
+
+/* --- 4. 卡片：顶部霓虹细线 + 悬停内发光，不覆盖原 box-shadow --- */
+html[data-darkmode="true"] .cbi-section {
+	border-top-color: rgba(34, 211, 238, .42);
+}
+html[data-darkmode="true"] .cbi-section:hover {
+	box-shadow: inset 0 1px 0 rgba(34, 211, 238, .42), 0 8px 28px rgba(0, 0, 0, .30);
+}
+
+/* --- 5. 品牌字与关键标题渐变 --- */
+html[data-darkmode="true"] .vt-brand-word {
+	background: linear-gradient(92deg, #22d3ee, #a78bfa);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+html[data-darkmode="true"] .vt-brand-dot {
+	background: #22d3ee;
+	box-shadow: 0 0 12px #22d3ee, 0 0 24px rgba(34, 211, 238, .11);
+}
+
+/* --- 6. 状态呼吸与滚动条 --- */
+@keyframes vt-stage8-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+@keyframes vt-stage8-fade  { from { opacity: 0; } to { opacity: 1; } }
+
+html[data-darkmode="true"] #indicators > span[data-style="active"]::before {
+	animation: vt-stage8-pulse 2.4s ease-in-out infinite;
+}
+html[data-darkmode="true"] .vt-main > * {
+	animation: vt-stage8-fade .30s ease-out both;
+}
+html[data-darkmode="true"] ::-webkit-scrollbar-thumb {
+	background: linear-gradient(180deg, #22d3ee, #a78bfa);
+	border-radius: 8px;
+}
+html[data-darkmode="true"] ::selection {
+	background: rgba(34, 211, 238, .12);
+	color: #eafcff;
+}
+
+/* --- 7. 尊重系统的减少动效偏好 --- */
+@media (prefers-reduced-motion: reduce) {
+	html[data-darkmode="true"] .vt-main > *,
+	html[data-darkmode="true"] #indicators > span[data-style="active"]::before {
+		animation: none !important;
+	}
+}
+
+/* ===== stage8 Vantage cool layer / preset: neon [END] ===== */

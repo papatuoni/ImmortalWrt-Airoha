@@ -9,3 +9,5 @@ mtd*.bin
 # 系统生成的杂物
 .DS_Store
 Thumbs.db
+
+*.bak-stage8
